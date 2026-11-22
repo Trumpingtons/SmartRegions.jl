@@ -64,8 +64,13 @@ function terrain_maps(title::AbstractString, layers::Pair...; labels = nothing, 
 	dx, dy = abs(Float64(step(lookup(r, Rasters.X)))), abs(Float64(step(lookup(r, Rasters.Y))))
 	west, north = minimum(cx) - dx / 2, maximum(cy) + dy / 2
 	w, h = length(cx) * dx, length(cy) * dy
-	middle = centre === nothing ? (w / 2, h / 2) : (centre[1] - west, north - centre[2])
-	0 <= middle[1] <= w && 0 <= middle[2] <= h || throw(ArgumentError("the centre $(centre) is outside the rasters"))
+	place = nothing
+	if centre !== nothing || width !== nothing
+		at = centre === nothing ? (w / 2, h / 2) : (centre[1] - west, north - centre[2])
+		0 <= at[1] <= w && 0 <= at[2] <= h || throw(ArgumentError("the centre $(centre) is outside the rasters"))
+		side = Float64(something(width, min(w, h) / 4))
+		place = (Float64.(at), (side, side))
+	end
 	maps = Tuple{String, String, String}[(name, """<image class="cells" href="$(grey_png(v, low, high))" width="$(w)" height="$(h)" preserveAspectRatio="none"/>""", "")
 		for (name, v, low, high) in drawn]
 	system = Rasters.crs(r)
@@ -77,7 +82,7 @@ function terrain_maps(title::AbstractString, layers::Pair...; labels = nothing, 
 		imagery && push!(maps, ("Aerial and Satellite Imagery", imagery_tiles(system, west, north, w, h), SR.IMAGERY_CREDIT))
 	end
 	return SR.maps_page(title, maps, labels === nothing ? "" : outline_path(labels); size = (w, h), cell = dx, metres,
-		centre = Float64.(middle), span = width === nothing ? (w, h) : (Float64(width), Float64(width)))
+		centre = (w / 2, h / 2), span = (w, h), place)
 end
 
 end

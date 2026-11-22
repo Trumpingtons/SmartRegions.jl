@@ -13,10 +13,11 @@ its path. Each of `layers` is `name => raster`, drawn in grey from 0 to 1, or `n
 grey from `low` to `high`; the rasters are `Raster`s of Rasters.jl on one grid. With `imagery`, a last map shows
 Esri's World Imagery of that ground, put on the grid of the rasters, when they have a coordinate system: the page
 then asks Esri's server for the tiles of that area, which tells it where the area is. `labels`, the cells of features
-as the functions that find them return, are outlined on every map. The maps open on the whole raster, or on the
-square `width` across around `centre`, as `(x, y)` in the coordinates of the rasters. Each has a scale bar, in metres
-when the coordinate system is projected, and N, E, S and W, which follow the grid. Needs Rasters.jl and ArchGDAL.jl
-loaded.
+as the functions that find them return, are outlined on every map. The maps open on the whole raster; the hand moves
+them all, + and − zoom them all. With `centre`, as `(x, y)` in the coordinates of the rasters, and `width`, a button
+Zoom on the Place takes them to the square `width` across around `centre`, and Reset back to the whole raster. Each
+map has a scale bar, in metres when the coordinate system is projected, and N, E, S and W, which follow the grid.
+Needs Rasters.jl and ArchGDAL.jl loaded.
 
 ```julia
 using SmartRegions, Rasters, ArchGDAL
@@ -36,6 +37,7 @@ header button { min-width: 30px; padding: 3px 8px; font: inherit; color: inherit
 main { flex: 1; min-height: 0; display: flex; gap: 4px; }
 figure { position: relative; flex: 1; min-width: 0; min-height: 0; margin: 0; overflow: hidden; background: #000; }
 figure svg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; user-select: none; cursor: grab; }
+figure svg.grabbing { cursor: grabbing; }
 figure image { pointer-events: none; }
 .over { position: absolute; padding: 2px 6px; background: rgba(0, 0, 0, 0.65); color: #fff; border-radius: 3px; pointer-events: none; }
 .name { top: 6px; left: 6px; max-width: 40%; }
@@ -50,18 +52,19 @@ figure image { pointer-events: none; }
 @media (max-width: 700px) { main { flex-direction: column; } }
 """
 
-# SITE is the size of the rasters, the side of a cell, the metres in a unit and what the maps open on, in units of
-# the coordinate system from the north-west corner, y to the south
+# SITE is the size of the rasters, the side of a cell, the metres in a unit, what the maps open on and the place of
+# Zoom on the Place (or null), in units of the coordinate system from the north-west corner, y to the south
 const MAPS_JS = raw"""
 const maps = [...document.querySelectorAll("figure svg")];
 const tiles = [...document.querySelectorAll("image.tile")].map(i => [i, Math.hypot(...i.getAttribute("transform").slice(7, -1).split(" ").slice(0, 2))]);
 let x, y, unit, moved = false;
 const limit = v => Math.min(SITE.span[0] * 10, Math.max(SITE.cell / 64, v));
-function fit() {
+function show(centre, span) {
 	const w = maps[0].clientWidth || 1, h = maps[0].clientHeight || 1;
-	[x, y] = SITE.centre;
-	unit = Math.max(SITE.span[0] / w, SITE.span[1] / h);
+	[x, y] = centre;
+	unit = Math.max(span[0] / w, span[1] / h);
 }
+const fit = () => show(SITE.centre, SITE.span);
 function draw() {
 	// each tile reaches a pixel of the screen into the next, so that no line shows where they meet
 	for (const [tile, scale] of tiles) {
@@ -88,7 +91,7 @@ function zoom(by, dx = 0, dy = 0) {
 }
 for (const svg of maps) {
 	let from = null;
-	svg.addEventListener("pointerdown", e => { from = [e.clientX, e.clientY]; svg.setPointerCapture(e.pointerId); });
+	svg.addEventListener("pointerdown", e => { from = [e.clientX, e.clientY]; svg.setPointerCapture(e.pointerId); svg.classList.add("grabbing"); });
 	svg.addEventListener("pointermove", e => {
 		if (!from) { return; }
 		x -= (e.clientX - from[0]) * unit;
@@ -97,7 +100,7 @@ for (const svg of maps) {
 		moved = true;
 		draw();
 	});
-	for (const end of ["pointerup", "pointercancel"]) { svg.addEventListener(end, () => { from = null; }); }
+	for (const end of ["pointerup", "pointercancel"]) { svg.addEventListener(end, () => { from = null; svg.classList.remove("grabbing"); }); }
 	svg.addEventListener("wheel", e => {
 		e.preventDefault();
 		const box = svg.getBoundingClientRect();
@@ -109,6 +112,7 @@ for (const svg of maps) {
 }
 document.getElementById("in").onclick = () => zoom(1 / 1.5);
 document.getElementById("out").onclick = () => zoom(1.5);
+if (SITE.place) { document.getElementById("place").onclick = () => { show(SITE.place.centre, SITE.place.span); moved = true; draw(); }; }
 document.getElementById("reset").onclick = () => { moved = false; fit(); draw(); };
 new ResizeObserver(() => { if (!moved) { fit(); } draw(); }).observe(document.querySelector("main"));
 fit();
@@ -137,20 +141,22 @@ function tile_image(z, (i, j), nw, ne, sw)
 	return """<image class="tile" href="$(IMAGERY)/$(z)/$(j)/$(i)" width="256.7" height="256.7" preserveAspectRatio="none" transform="matrix($(join(m, ' ')))"/>"""
 end
 
-# The page: `maps` are (name, the SVG of the map, its credit), `outline` an SVG path drawn on each
-function maps_page(title, maps, outline; size, cell, metres, centre, span)
+# The page: `maps` are (name, the SVG of the map, its credit), `outline` an SVG path drawn on each, `place` the centre
+# and span of Zoom on the Place, or nothing
+function maps_page(title, maps, outline; size, cell, metres, centre, span, place = nothing)
 	drawn = isempty(outline) ? "" : """<path d="$(outline)" fill="none" stroke="#000" stroke-opacity="0.45" stroke-width="4" vector-effect="non-scaling-stroke"/><path d="$(outline)" fill="none" stroke="#e8a33d" stroke-width="2" vector-effect="non-scaling-stroke"/>"""
 	figures = join(("""<figure><svg role="img" aria-label="$(html(name))">$(body)$(drawn)</svg>
 <div class="over name">$(html(name))</div><div class="over n">N</div><div class="over e">E</div><div class="over s">S</div><div class="over w">W</div>
 <div class="over scale"><span class="length"></span><div class="bar"></div></div>$(isempty(credit) ? "" : "<div class=\"over credit\">$(html(credit))</div>")</figure>""" for (name, body, credit) in maps), "\n")
-	site = "{size: [$(join(size, ','))], cell: $(cell), metres: $(something(metres, "null")), centre: [$(join(centre, ','))], span: [$(join(span, ','))]}"
+	there = place === nothing ? "null" : "{centre: [$(join(place[1], ','))], span: [$(join(place[2], ','))]}"
+	site = "{size: [$(join(size, ','))], cell: $(cell), metres: $(something(metres, "null")), centre: [$(join(centre, ','))], span: [$(join(span, ','))], place: $(there)}"
 	file = joinpath(pages(), slug(title) * ".html")
 	write(file, """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>$(html(title))</title>
 <style>$(MAPS_CSS)</style>
 </head><body>
 <header><h1>$(html(title))</h1><span>Drag to move, scroll to zoom. N, E, S and W follow the grid.</span>
-<button id="in" aria-label="Zoom in">+</button><button id="out" aria-label="Zoom out">−</button><button id="reset">Reset</button></header>
+<button id="in" aria-label="Zoom in">+</button><button id="out" aria-label="Zoom out">−</button>$(place === nothing ? "" : "<button id=\"place\">Zoom on the Place</button>")<button id="reset">Reset</button></header>
 <main>
 $(figures)
 </main>
