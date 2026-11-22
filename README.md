@@ -15,7 +15,7 @@ Open data of places for smart cities and regions, read into DuckDB from Julia.
 - **Mobility**: the commuters between the zones of a city from its census or employment statistics, trips by bike, taxi and bus, counts of road traffic, and the flights of a month from the OpenSky Network's flight list.
 - **Google's maps**: pages with Google's 2D maps (roadmap, satellite, terrain) or its photorealistic 3D map, with features of one's own drawn on them, coloured by a column: polygons raised to a height, lines at their altitudes, points with labels.
 - **Places**: the box around a point, the UTM zone of a point, a box in another coordinate system, GeoJSON written from a query, and the features of a vector file in longitude and latitude.
-- **Terrain models for archaeological prospection**: relief visualisation as RVT 2.2.3 computes it (the local relief model, the sky-view factor, positive and negative openness, shaded relief, slope and the layered image), candidate features (mounds and pits from their depressions, mounds, pits and ring ditches by template matching, and regions of local relief by threshold and shape), and the scheduled monuments of the National Heritage List for England within an area.
+- **Terrain models for archaeological prospection**: relief visualisation as RVT 2.2.3 computes it (the local relief model, the sky-view factor, positive and negative openness, shaded relief, slope and the layered image), candidate features (mounds and pits from their depressions, mounds, pits and ring ditches by template matching, and regions of local relief by threshold and shape), the scheduled monuments of the National Heritage List for England within an area, and maps of the rasters side by side with Esri's World Imagery of the same ground, which drag and zoom together.
 
 The functions that read data take a DuckDB connection with the extensions `spatial` and, for files over HTTPS, `httpfs` loaded. Overture Maps, Mapillary and the catalogues of satellite scenes and topographic datasets are read into tables; the OpenSky functions return the SQL that reads what they downloaded, to make a table of or join with others. The files of bands and elevation models are downloaded once into a folder and returned as paths, to read with Rasters.jl, and so are the files of OpenStreetMap, GISCO and the sources of mobility, which a later call reads from there. The map functions write an HTML page and return its path; the page holds the key, so it is written to a temporary folder that Julia removes when it exits. The terrain functions take a matrix of heights and its cell size, or a `Raster` of Rasters.jl, whose grid their results keep.
 
@@ -86,6 +86,9 @@ dem = replace_missing(read(Raster("dtm.tif")), NaN32)
 lrm = local_relief(dem; radius = 20)
 mounds = find_mounds(dem).candidates
 scheduled_monuments(con, dem)
+
+# The local relief beside imagery of the same ground, on a page whose maps move together
+page = terrain_maps("Local Relief", "Local Relief" => (lrm, -0.5, 0.5))
 ```
 
 ## Keys and Accounts

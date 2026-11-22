@@ -9,7 +9,8 @@ their fastest routes and travel times, the geographic files of Eurostat's GISCO 
 datasets and the features of their download services, flows of commuters and trips between zones, counts of road
 traffic and the flights of the OpenSky Network's flight list, pages of Google's 2D and 3D maps with features of
 one's own drawn on them, and, for archaeological prospection, relief visualisations of lidar terrain models and the
-candidate features found in them, with the scheduled monuments of England to set them beside. The functions that read
+candidate features found in them, with the scheduled monuments of England to set them beside, and pages of these
+rasters beside imagery of the same ground. The functions that read
 data take a DuckDB connection with the extensions
 `spatial` and, for files over HTTPS, `httpfs` loaded, and write tables in it, or return SQL that reads what they
 downloaded; the map functions write an HTML page and return its path.
@@ -50,6 +51,8 @@ export local_relief, sky_view_factor, openness, terrain_slope, shaded_relief, la
 # Candidate features and known sites
 export fill_depressions, regions, find_mounds, find_pits, find_regions, feature_template, template_scores, find_templates
 export scheduled_monuments, candidates_table, save_candidates, feature_outlines
+# Maps of terrain models
+export terrain_maps
 
 include("places.jl")
 include("google.jl")
@@ -66,5 +69,6 @@ include("inspire.jl")
 include("mobility.jl")
 include("relief.jl")
 include("features.jl")
+include("maps.jl")
 
 end
