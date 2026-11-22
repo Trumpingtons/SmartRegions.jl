@@ -54,6 +54,7 @@ figure image { pointer-events: none; }
 # the coordinate system from the north-west corner, y to the south
 const MAPS_JS = raw"""
 const maps = [...document.querySelectorAll("figure svg")];
+const tiles = [...document.querySelectorAll("image.tile")].map(i => [i, Math.hypot(...i.getAttribute("transform").slice(7, -1).split(" ").slice(0, 2))]);
 let x, y, unit, moved = false;
 const limit = v => Math.min(SITE.span[0] * 10, Math.max(SITE.cell / 64, v));
 function fit() {
@@ -62,6 +63,11 @@ function fit() {
 	unit = Math.max(SITE.span[0] / w, SITE.span[1] / h);
 }
 function draw() {
+	// each tile reaches a pixel of the screen into the next, so that no line shows where they meet
+	for (const [tile, scale] of tiles) {
+		tile.setAttribute("width", 256 + unit / scale);
+		tile.setAttribute("height", 256 + unit / scale);
+	}
 	for (const svg of maps) {
 		const w = svg.clientWidth || 1, h = svg.clientHeight || 1;
 		svg.setAttribute("viewBox", [x - w * unit / 2, y - h * unit / 2, w * unit, h * unit].join(" "));
