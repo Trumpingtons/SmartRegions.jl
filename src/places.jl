@@ -51,3 +51,49 @@ quoted(s) = replace(String(s), "'" => "''")
 
 # The first column of the first row of a query
 scalar(con, sql) = only(only(Tables.columntable(DBInterface.execute(con, sql))))
+
+"""
+    projected_box(con, box, crs)
+
+The box `(west, south, east, north)`, in degrees of longitude and latitude, in the coordinate system `crs` (as
+`"EPSG:32632"`), as `(x0, y0, x1, y1)`: the smallest box there that holds it, from DuckDB's `ST_Transform` on the
+connection `con`, which should have `SET geometry_always_xy = true`. It is the extent to cut a raster of that system
+to the box, as `Extent(X = (x0, x1), Y = (y0, y1))` of Rasters.jl.
+
+```julia
+x0, y0, x1, y1 = projected_box(con, (11.30, 44.47, 11.37, 44.52), "EPSG:32632")  # central Bologna in UTM zone 32 north
+```
+"""
+function projected_box(con, box, crs::AbstractString)
+	west, south, east, north = box
+	b = Tables.columntable(DBInterface.execute(con, "SELECT ST_XMin(g) AS x0, ST_YMin(g) AS y0, ST_XMax(g) AS x1, ST_YMax(g) AS y1 FROM (SELECT ST_Transform(ST_MakeEnvelope($(west), $(south), $(east), $(north)), 'EPSG:4326', '$(quoted(crs))') AS g)"))
+	return (only(b.x0), only(b.y0), only(b.x1), only(b.y1))
+end
+
+# The envelope of a box, in SQL
+envelope(box) = "ST_MakeEnvelope($(box[1]), $(box[2]), $(box[3]), $(box[4]))"
+
+# A list of texts, in SQL
+sqllist(files) = "[" * join(("'$(quoted(f))'" for f in files), ", ") * "]"
+
+# The elements of the JSON array at `pointer` in each file, one row each as `x`, in SQL
+jsonrows(files, pointer) = "(SELECT unnest(CAST(coalesce(json_extract(content, '$(pointer)'), '[]') AS JSON[])) AS x FROM read_text($(sqllist(files))))"
+
+# A text in JSON
+jsonstring(s) = "\"" * replace(String(s), "\\" => "\\\\", "\"" => "\\\"", "\n" => "\\n", "\r" => "\\r", "\t" => "\\t") * "\""
+
+# One GET request written to path. The statuses in `empty` give an empty file; any other answer but 200 stops with
+# the message `said` finds in it.
+function fetched(url, path; source, headers = Pair{String, String}[], empty = (), said = s -> first(s, 300))
+	part = path * ".part"
+	r = open(io -> Downloads.request(url; output = io, headers = headers, throw = false), part, "w")
+	r isa Downloads.Response || (rm(part; force = true); error("$(source) could not be reached: $(r.message)"))
+	if r.status in empty
+		write(part, "")
+	elseif r.status != 200
+		answer = read(part, String)
+		rm(part; force = true)
+		error("$(source) answered HTTP $(r.status): $(said(answer))")
+	end
+	return mv(part, path; force = true)
+end

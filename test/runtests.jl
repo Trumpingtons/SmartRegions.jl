@@ -18,4 +18,11 @@ using SmartRegions, Test
 		@test_throws ArgumentError overture(nothing, "building")
 		@test_throws ArgumentError overture(nothing, "building"; box = (0, 0, 1, 1), within = (0, 0, 100))
 	end
+
+	@testset "Requests refused before they are sent" begin
+		@test_throws ArgumentError mapillary_near(nothing, 4.8932, 52.3731, 600; token = "T")  # more than 500 m
+		@test_throws ArgumentError mapillary_images(nothing, (4.0, 52.0, 6.0, 53.0); token = "T")  # 2 square degrees
+		@test_throws ArgumentError mapillary_image(nothing, "Dam Square", 4.8932, 52.3731; token = "T")
+		@test_throws ArgumentError opentopography_dem((-123.0, 37.0, -122.0, 38.0), "USGS1m"; folder = mktempdir(), key = "K")  # about 9,800 km², more than 250
+	end
 end
