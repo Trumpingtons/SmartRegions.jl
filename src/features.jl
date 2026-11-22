@@ -261,34 +261,59 @@ function scheduled_monuments(con, box; crs, table::AbstractString = "monuments")
 end
 
 """
-    candidates_table(con, candidates; crs, table = "candidates")
+    feature_outlines(labels)
+
+The outline of each feature of `labels`, a `Raster` of Rasters.jl whose cells hold the `id` of the feature they belong
+to (0 outside every feature), as returned by the functions that find features: a vector of `(id, wkt)`, each the
+polygon of the feature's cells in the coordinates of the raster, traced along the edges of the cells by GDAL's
+polygonize, as ADAF traces its features. Needs Rasters.jl and ArchGDAL.jl loaded.
+"""
+function feature_outlines end
+
+"""
+    candidates_table(con, candidates; crs, labels = nothing, table = "candidates")
 
 Writes `candidates`, with positions `x` and `y` in the coordinate system `crs`, to the table `table` on the DuckDB
-connection `con`, which has `spatial` loaded (`crs` as in [`scheduled_monuments`](@ref)): their fields and `geom`, a point at each. Returns the number of rows.
+connection `con`, which has `spatial` loaded (`crs` as in [`scheduled_monuments`](@ref)): their fields and `geom`,
+the outline of each when `labels`, the `Raster` of their cells, is given (see [`feature_outlines`](@ref)), and a point
+at each otherwise. Returns the number of rows.
 """
-function candidates_table(con, candidates; crs, table::AbstractString = "candidates")
+function candidates_table(con, candidates; crs, labels = nothing, table::AbstractString = "candidates")
 	crs = crs_string(crs)
 	isempty(candidates) && throw(ArgumentError("No candidates to write"))
 	fields = collect(keys(first(candidates)))
 	csv = tempname() * ".csv"
 	write(csv, join(fields, ",") * "\n" * join([join([getfield(c, f) for f in fields], ",") for c in candidates], "\n"))
-	DBInterface.execute(con, "CREATE OR REPLACE TABLE $(table) AS SELECT *, ST_Point(x, y) AS geom FROM read_csv('$(csv)')")
+	if labels === nothing
+		DBInterface.execute(con, "CREATE OR REPLACE TABLE $(table) AS SELECT *, ST_Point(x, y) AS geom FROM read_csv('$(csv)')")
+	else
+		outlines = tempname() * ".csv"
+		write(outlines, "id,wkt\n" * join(["$(id),\"$(wkt)\"" for (id, wkt) in feature_outlines(labels)], "\n"))
+		DBInterface.execute(con, """
+			CREATE OR REPLACE TABLE $(table) AS
+			SELECT c.*, coalesce(o.geom, ST_Point(c.x, c.y)) AS geom
+			FROM read_csv('$(csv)') c
+			LEFT JOIN (SELECT id, ST_Union_Agg(ST_GeomFromText(wkt)) AS geom FROM read_csv('$(outlines)', columns = {'id': 'BIGINT', 'wkt': 'VARCHAR'}, header = true) GROUP BY id) o ON c.id = o.id
+			ORDER BY c.id""")
+		rm(outlines)
+	end
 	rm(csv)
 	return scalar(con, "SELECT count(*) FROM $(table)")
 end
 
 """
-    save_candidates(con, candidates, path; crs)
+    save_candidates(con, candidates, path; crs, labels = nothing)
 
-Writes `candidates`, with positions `x` and `y` in the coordinate system `crs`, as points with their fields to the
-GeoPackage `path`, through the DuckDB connection `con`, which has `spatial` loaded (`crs` as in
-[`scheduled_monuments`](@ref)). Returns `path`.
+Writes `candidates`, with positions `x` and `y` in the coordinate system `crs`, with their fields to the GeoPackage
+`path`, through the DuckDB connection `con`, which has `spatial` loaded (`crs` as in [`scheduled_monuments`](@ref)):
+each as its outline when `labels`, the `Raster` of their cells, is given (see [`feature_outlines`](@ref)), and as a
+point at its centre otherwise. Returns `path`.
 """
-function save_candidates(con, candidates, path::AbstractString; crs)
+function save_candidates(con, candidates, path::AbstractString; crs, labels = nothing)
 	crs = crs_string(crs)
 	isfile(path) && throw(ArgumentError("$(path) is there already: rename or move it first"))
 	DBInterface.execute(con, "SET geometry_always_xy = true")
-	candidates_table(con, candidates; crs, table = "candidates_to_save")
+	candidates_table(con, candidates; crs, labels, table = "candidates_to_save")
 	DBInterface.execute(con, "COPY candidates_to_save TO '$(path)' WITH (FORMAT GDAL, DRIVER 'GPKG', SRS '$(crs)')")
 	DBInterface.execute(con, "DROP TABLE candidates_to_save")
 	return path

@@ -5,8 +5,7 @@ module SmartRegionsRastersExt
 
 using SmartRegions, Rasters
 import SmartRegions: local_relief, sky_view_factor, openness, terrain_slope, shaded_relief, layered_image,
-	find_mounds, find_pits, find_regions, find_templates, scheduled_monuments, save_candidates, candidates_table, crs_string,
-	adaf_input, adaf_probability, adaf_features
+	find_mounds, find_pits, find_regions, find_templates, scheduled_monuments, save_candidates, candidates_table, crs_string
 
 const L = Rasters.Lookups
 
@@ -38,38 +37,6 @@ find_mounds(surface::Rasters.AbstractRaster; kw...) = with_grid(surface, find_mo
 find_pits(surface::Rasters.AbstractRaster; kw...) = with_grid(surface, find_pits(heights(surface), steps(surface); kw...))
 find_regions(lrm::Rasters.AbstractRaster; kw...) = with_grid(lrm, find_regions(heights(lrm), steps(lrm); kw...))
 find_templates(lrm::Rasters.AbstractRaster; kw...) = with_grid(lrm, find_templates(heights(lrm), steps(lrm); kw...))
-
-# ADAF reads a terrain model from its north-west corner: the matrices are turned north first, and back
-north_first(r) = first(lookup(r, Y)) > last(lookup(r, Y))
-turned(r, v) = north_first(r) ? v : reverse(v; dims = 2)
-
-adaf_input(dem::Rasters.AbstractRaster) = on_grid(dem, turned(dem, adaf_input(turned(dem, heights(dem)), steps(dem))))
-
-"""
-    adaf_probability(model, dem::Raster; tile = 1024)
-
-The probability of an archaeological feature at each cell of the terrain model `dem`, from ADAF's model `model`, on
-the grid of `dem`: its local relief image, tiled from the north-west corner as ADAF tiles it. Missing where `dem` is.
-"""
-function adaf_probability(model, dem::Rasters.AbstractRaster; kw...)
-	p = turned(dem, adaf_probability(model, turned(dem, Float32.(parent(adaf_input(dem)) .|> x -> coalesce(x, 0.0f0))); kw...))
-	return on_grid(dem, ifelse.(isfinite.(heights(dem)), Float64.(p), NaN))
-end
-
-"""
-    adaf_features(probability::Raster; kw...)
-
-The features of the probability map `probability` (see `adaf_features(probability, cellsize)`), with their tiles
-counted from the north-west corner, at `x` and `y`, and their cells as a raster `labels`.
-"""
-function adaf_features(probability::Rasters.AbstractRaster; kw...)
-	ny = size(probability, Y)
-	found = adaf_features(turned(probability, heights(probability)), steps(probability); kw...)
-	if !north_first(probability)
-		found = (candidates = [merge(c, (j = ny + 1 - c.j,)) for c in found.candidates], labels = reverse(found.labels; dims = 2))
-	end
-	return with_grid(probability, found)
-end
 
 """
     scheduled_monuments(con, dem::Raster; table = "monuments")

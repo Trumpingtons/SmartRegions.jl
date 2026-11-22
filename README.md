@@ -15,9 +15,9 @@ Open data of places for smart cities and regions, read into DuckDB from Julia.
 - **Mobility**: the commuters between the zones of a city from its census or employment statistics, trips by bike, taxi and bus, counts of road traffic, and the flights of a month from the OpenSky Network's flight list.
 - **Google's maps**: pages with Google's 2D maps (roadmap, satellite, terrain) or its photorealistic 3D map, with features of one's own drawn on them, coloured by a column: polygons raised to a height, lines at their altitudes, points with labels.
 - **Places**: the box around a point, the UTM zone of a point, a box in another coordinate system, GeoJSON written from a query, and the features of a vector file in longitude and latitude.
-- **Terrain models for archaeological prospection**: relief visualisation as RVT 2.2.3 computes it (the local relief model, the sky-view factor, positive and negative openness, shaded relief, slope and the layered image), candidate features (mounds and pits from their depressions, mounds, pits and ring ditches by template matching, and regions of local relief by threshold and shape), the trained segmentation models of ADAF (the Automatic Detection of Archaeological Features tool), and the scheduled monuments of the National Heritage List for England within an area.
+- **Terrain models for archaeological prospection**: relief visualisation as RVT 2.2.3 computes it (the local relief model, the sky-view factor, positive and negative openness, shaded relief, slope and the layered image), candidate features (mounds and pits from their depressions, mounds, pits and ring ditches by template matching, and regions of local relief by threshold and shape), and the scheduled monuments of the National Heritage List for England within an area.
 
-The functions that read data take a DuckDB connection with the extensions `spatial` and, for files over HTTPS, `httpfs` loaded. Overture Maps, Mapillary and the catalogues of satellite scenes and topographic datasets are read into tables; the OpenSky functions return the SQL that reads what they downloaded, to make a table of or join with others. The files of bands and elevation models are downloaded once into a folder and returned as paths, to read with Rasters.jl, and so are the files of OpenStreetMap, GISCO and the sources of mobility, which a later call reads from there. The map functions write an HTML page and return its path; the page holds the key, so it is written to a temporary folder that Julia removes when it exits. The terrain functions take a matrix of heights and its cell size, or a `Raster` of Rasters.jl, whose grid their results keep; ADAF's models need NNlib.jl and Pickle.jl loaded, and are downloaded once into a folder.
+The functions that read data take a DuckDB connection with the extensions `spatial` and, for files over HTTPS, `httpfs` loaded. Overture Maps, Mapillary and the catalogues of satellite scenes and topographic datasets are read into tables; the OpenSky functions return the SQL that reads what they downloaded, to make a table of or join with others. The files of bands and elevation models are downloaded once into a folder and returned as paths, to read with Rasters.jl, and so are the files of OpenStreetMap, GISCO and the sources of mobility, which a later call reads from there. The map functions write an HTML page and return its path; the page holds the key, so it is written to a temporary folder that Julia removes when it exits. The terrain functions take a matrix of heights and its cell size, or a `Raster` of Rasters.jl, whose grid their results keep.
 
 ## Usage
 
@@ -79,15 +79,13 @@ eurostat(con, "demo_r_d3dens", "A.PER_KM2.")
 # The commuters between the municipalities around Amsterdam, from Statistics Netherlands
 commuting_flows(con, "amsterdam"; folder = "mobility")
 
-# A lidar terrain model of one's own: its local relief model, the mounds in it, the scheduled monuments of England
-# within it, and the features that ADAF's model for all archaeology finds
-using Rasters, ArchGDAL, NNlib, Pickle
+# A lidar terrain model of one's own: its local relief model, the mounds in it, and the scheduled monuments of England
+# within it
+using Rasters, ArchGDAL
 dem = replace_missing(read(Raster("dtm.tif")), NaN32)
 lrm = local_relief(dem; radius = 20)
 mounds = find_mounds(dem).candidates
 scheduled_monuments(con, dem)
-model = adaf_model(adaf_weights("adaf"; feature = :all))
-features = adaf_features(adaf_probability(model, dem)).candidates
 ```
 
 ## Keys and Accounts
