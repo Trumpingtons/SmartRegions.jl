@@ -1,0 +1,196 @@
+% Pollis Domain Packages: SmartRegions.jl
+% Compile from this folder with: julia -e 'using PollisTeX; display(compile("SmartRegions.tex"))'
+% The values of the first table come from values.jl, read live on the day the text names; those of the second from the panels' Example Code, run the same day.
+\input{vignette_style}
+
+% A package Pollis needs for panels of its own, not one that reproduces a paper: its own header, key facts and credit
+\renewcommand{\vignetteauthor}{Antonio Saragga Seabra}
+\renewcommand{\vignettedate}{22 November 2026}
+\renewcommand{\vignettelicense}{MIT}
+\fancyfoot[L]{\footnotesize\color{soft}\textbf{Pollis}\enspace Domain Packages\enspace·\enspace\nmtheme}
+\renewcommand{\nmhead}[3]{%
+  \renewcommand{\nmtheme}{#1}%
+  \thispagestyle{fancy}%
+  \begin{minipage}[c]{13mm}\pollislogo{11mm}\end{minipage}%
+  \begin{minipage}[c]{\dimexpr\linewidth-13mm\relax}
+    {\color{navy}\Large\bfseries Pollis}\enspace{\color{soft}Domain Packages}\hfill
+    {\color{deepamber}\small\bfseries\MakeUppercase{#1}}
+  \end{minipage}\par\vspace{7mm}
+  {\color{navy}\fontsize{22}{26}\selectfont\bfseries #2}\par\vspace{4pt}
+  {\color{soft}\large #3}\par\vspace{5mm}}
+\renewcommand{\factsheet}[4]{%
+  \begin{tcolorbox}[enhanced, colback=pale, colframe=pale, boxrule=0pt, sharp corners,
+    left=7pt, right=7pt, top=5pt, bottom=5pt, fontupper=\small]
+  \begin{tabularx}{\linewidth}{@{}>{\leavevmode\bfseries\color{navy}}p{27mm}>{\leavevmode}X@{}}
+  In Pollis & #1\\
+  Missing in Julia & #2\\
+  Package & #3\\
+  Tests & #4
+  \end{tabularx}
+  \end{tcolorbox}}
+\renewcommand{\nmcredit}{%
+  \par\vfill
+  \begin{minipage}[b]{0.78\linewidth}\footnotesize\color{soft}
+  Package written and tested with Claude Code (Anthropic) in Pollis.\par
+  \textcopyright\ 2026 \vignetteauthor\enspace·\enspace Licensed under \vignettelicense\enspace·\enspace\vignettedate
+  \end{minipage}\hfill
+  \begin{minipage}[b]{0.18\linewidth}\raggedleft\pollislogo{9mm}\par\vspace{2pt}{\footnotesize contact@pollis.org}\end{minipage}}
+\newcolumntype{R}{>{\raggedleft\arraybackslash}X}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\begin{document}
+\emergencystretch=3em
+
+\nmhead{Smart Regions}
+  {SmartRegions: open data of places in Julia}
+  {Overture Maps, the OpenSky Network, Mapillary, Copernicus, USGS EarthExplorer, OpenTopography, OpenStreetMap and
+   its street networks, Eurostat, INSPIRE and the flows of mobility, read into DuckDB}
+
+\factsheet
+  {Powers 14 panels of the Smart Regions Toolbox: OpenStreetMap Data, Overture Maps Data, Eurostat GISCO, INSPIRE Data,
+   Copernicus Data Space, USGS EarthExplorer, OpenTopography, Mapillary Street-Level Imagery and Viewer, Route and Network
+   Analysis, Mobility and Flows, Air Traffic, Google Maps and Google Photorealistic 3D Maps.}
+  {Of the packages of the General registry, by name and description, none reads Overture Maps, the OpenSky Network,
+   Mapillary, the Machine-to-Machine API of USGS, OpenTopography, GISCO, Eurostat's API, the services of INSPIRE or
+   Geofabrik. For OpenStreetMap the registry has LightOSM, OpenStreetMapX and OpenStreetMapPBF, and for catalogues of
+   scenes STAC and CopernicusData; none of them was run here.}
+  {\package{SmartRegions}{https://github.com/Trumpingtons/SmartRegions.jl} 0.3.0, MIT:\newline
+   \fn{Pkg.Registry.add(url = "https://github.com/Trumpingtons/PollisRegistry.git")}\newline \fn{Pkg.add("SmartRegions")}}
+  {\fn{test/runtests.jl}: 13 tests that need no network, among them fastest routes and a matrix of travel times on a
+   network of four nodes, against values worked by hand. Every function that reads a source, and every tab of the 14
+   panels, run against the live sources on 22 November 2026 (next page).}
+
+\nmsection{Why a package}
+Each source of open data has its own way in: a STAC catalogue, a REST API with or without an account, GeoParquet files
+over HTTPS, Overpass queries, Atom feeds, Web Feature Services that answer in GML, census tables in CSV, JSON-stat or
+Excel. Reading one takes requests, retries, pages, the parsing of XML or JSON, and the conversion of coordinates. The
+package does that once, so that a panel's Example Code is a few calls, and leaves what it reads as tables of DuckDB,
+which the Next Steps query in SQL and draw on maps. It does not depend on DuckDB.jl: every function takes a connection,
+\fn{con}, of the DuckDB the user loads, with the extensions \fn{spatial} and, for files over HTTPS, \fn{httpfs}.
+
+\nmsection{What it reads}
+\begin{valuetable}{@{}P{28mm} L P{22mm}@{}}
+Source & Functions & Account \\ \midrule
+Overture Maps & \fn{overture}, \fn{overture\_release}: the features of a theme over a box or within a radius, only the row groups that overlap it & none \\
+OpenSky Network & \fn{opensky\_states}, \fn{opensky\_track}, \fn{opensky\_flights}, \fn{opensky\_credits} & optional client \\
+Mapillary & \fn{mapillary\_coverage}, \fn{mapillary\_images}, \fn{mapillary\_near}, \fn{mapillary\_features}, \fn{mapillary\_thumbnails}, \fn{mapillary\_image} & token \\
+Copernicus Data Space & \fn{copernicus\_scenes} (STAC), \fn{copernicus\_band} & for bands \\
+USGS EarthExplorer & \fn{usgs\_scenes}, \fn{usgs\_download}, \fn{usgs\_bands}, \fn{usgs\_dem} & token \\
+OpenTopography & \fn{opentopography\_catalog}, \fn{opentopography\_dem} & key for elevation \\
+OpenStreetMap & \fn{osm\_overpass} (now or as of a date), \fn{osm\_read}; \fn{geofabrik\_layer}, \fn{geofabrik\_extract}, \fn{geofabrik\_earlier} & none \\
+Street networks & \fn{osm\_streets}, \fn{street\_network}, \fn{nearest\_node}, \fn{fastest\_route}, \fn{travel\_times}, \fn{service\_areas}, \fn{travel\_matrix} & none \\
+Eurostat & \fn{gisco\_files}, \fn{gisco\_file} (NUTS, LAU, countries, Urban Audit), \fn{eurostat} (SDMX-CSV), \fn{vector\_units} & none \\
+INSPIRE & \fn{inspire\_search}, \fn{inspire\_countries} (data.europa.eu), \fn{wfs\_features}, \fn{atom\_features}, \fn{ogc\_features} & none \\
+Mobility & \fn{commuting\_flows} (9 cities), \fn{trip\_flows} (London, New York, Singapore), \fn{traffic\_counts} (5 cities), \fn{air\_flights}, \fn{given\_flows}, \fn{given\_counts} & Singapore: LTA key \\
+Google's maps & \fn{googlemap}, \fn{googlemap3d}: a page with one's own features on Google's 2D or 3D map & API key \\
+Places & \fn{around}, \fn{utmzone}, \fn{projected\_box}, \fn{geojson} & \\
+\end{valuetable}
+
+\noindent Among the sources: OpenStreetMap (\nmcite{haklay2008}{Haklay and Weber, 2008}), the OpenSky Network
+(\nmcite{schafer2014}{Schäfer, Strohmeier, Lenders, Martinovic and Wilhelm, 2014}) and its monthly list of flights
+(\nmcite{strohmeier2021}{Strohmeier, Olive, Lübbe, Schäfer and Lenders, 2021}), and the services the member states of
+the European Union publish under the INSPIRE Directive (\nmcite{inspire2007}{Directive 2007/2/EC}).
+
+\nmsub{Street networks}
+\fn{osm\_streets} cuts the ways of OpenStreetMap with a highway tag into segments between nodes, measured on the WGS 84
+ellipsoid by DuckDB's \fn{ST\_Distance\_Spheroid}. \fn{street\_network} keeps those a mode may use, by the tags of access:
+walking both ways at 4.8 km/h, cycling at 15 km/h with one-way streets one way unless open to bicycles both ways, driving
+at the speed limit, else a speed for the class of road. The graph is a \fn{SimpleDiGraph} of Graphs.jl, and routes and
+travel times are shortest paths in seconds (\nmcite{dijkstra1959}{Dijkstra, 1959}) from a node of its largest strongly
+connected part, in which every node reaches every other.
+
+\nmsub{Files kept}
+What is downloaded is kept in a folder, \fn{folder}, and read from there the next time: the files of GISCO, Geofabrik,
+the sources of mobility, the answers of Overpass, and the features of WFS, Atom and OGC API services as GeoParquet.
+
+\nmsection{A worked example}
+\begin{footnotesize}
+\begin{verbatim}
+using SmartRegions, DuckDB, Tables
+con = DBInterface.connect(DuckDB.DB)
+foreach(sql -> DBInterface.execute(con, sql), ["LOAD spatial", "LOAD httpfs", "SET geometry_always_xy = true"])
+folder = mkpath("smartregions")
+
+# A walk across central Cambridge, from the station to King's College Chapel
+osm_streets(con, (0.105, 52.188, 0.145, 52.216); folder)
+net = street_network(con, "walk")
+from, _ = nearest_node(con, net, 0.13772, 52.19411)
+to, _ = nearest_node(con, net, 0.11654, 52.20478)
+path, minutes, km = fastest_route(net, from, to)                  # 28.5 minutes, 2.28 km
+travel_times(con, net, from, 15)                                  # 3,054 nodes within 15 minutes
+
+# The NUTS 3 regions of Portugal, with their density of population from Eurostat
+nuts = gisco_file("nuts", "NUTS_RG_20M_2024_4326_LEVL_3"; folder)
+DBInterface.execute(con, "CREATE TABLE regions AS SELECT * FROM $(vector_units(con, nuts)) WHERE CNTR_CODE = 'PT'")
+eurostat(con, "demo_r_d3dens", "A.PER_KM2.")                      # the table eurostat; returns "geo"
+
+# The commuters between the zones of Cambridge, from the Census 2021
+commuting_flows(con, "cambridge"; folder)                         # the tables zones and flows
+\end{verbatim}
+\end{footnotesize}
+
+\nmsection{What the checks show}
+\nmsub{Read live with values.jl}
+Read on 22 November 2026 by \fn{vignette/values.jl}, from the sources that need no account. A source's answer changes
+with the day: the aircraft over Sydney now, the newest release of Overture Maps, the edits of OpenStreetMap.
+
+\begin{valuetable}{@{}P{30mm} L P{34mm}@{}}
+Source & Read & Value \\ \midrule
+Overture Maps & buildings within 300 m of Martin Place, Sydney; the release & 163; 2026-11-18.0 \\
+OpenSky Network & aircraft in a box of 60 km around Sydney Harbour, 01:48 UTC & 33 \\
+Copernicus Data Space & Sentinel-2 L2A scenes over central Bologna, June 2025, at most 10\% cloud & 2 \\
+OpenTopography & topographic datasets over the same box & 17 \\
+Overpass & features tagged \fn{amenity=school}, central Bologna & 54 \\
+Geofabrik & points of interest of Monaco & 1,557 \\
+Street network & nodes and directed edges open to walking, central Cambridge & 12,570; 27,760 \\
+ & fastest walk, the station to King's College Chapel & 28.5 min, 2.28 km \\
+ & nodes reached within 15 minutes of the station & 3,054 \\
+GISCO and Eurostat & NUTS 3 regions of Portugal; those with a density for 2024 & 26; 26 \\
+INSPIRE & datasets of administrative units of the Netherlands in data.europa.eu & 35 \\
+ & administrative units by WFS, OGC API and Atom & 353; 353; 355 \\
+Commuting & Cambridge, Census 2021: zones; workers between them; to or from outside; at or from home & 33; 56,934; 13,619; 81,824 \\
+Trips & London, Santander Cycles, May 2026: zones; journeys between them; to or from outside & 1,002; 833,327; 29,690 \\
+Road counts & Cambridge: count points; first and last year & 129; 2000, 2025 \\
+Flights & December 2022: flights seen; with both airports & 2,669,349; 1,690,944 \\
+\end{valuetable}
+
+\medskip
+\newpage
+\nmsub{The other tabs of the panels, run the same day}
+\begin{valuetable}{@{}P{34mm} P{22mm} L@{}}
+Panel & Tab & Result \\ \midrule
+OpenStreetMap Data & Overpass & 40 schools in central Bologna as of 1 January 2020 \\
+ & Extract & 1,438 amenities of Monaco \\
+Route and Network Analysis & Route & a drive in Monaco, from a PBF file of Geofabrik \\
+INSPIRE Data & WFS & 340 municipalities of 41,412 km\textsuperscript{2}, beside 342 local administrative units of GISCO, 37,402 km\textsuperscript{2} \\
+Mobility and Flows & Commuting & zones: Oxford 87, Amsterdam 49, Paris 142, Frankfurt 27, Tokyo 53, Hong Kong 21, New York 262 \\
+ & Trips & New York, September 2026: 3,850,083 taxi trips \\
+ & Interaction & Cambridge: distance elasticity $-$1.0818 (SE .0297), common part of commuters .888 \\
+ & Counts & count points: New York 3,937, Paris 2,083 \\
+ & Air & December 2022: 30,275 routes \\
+\end{valuetable}
+
+\medskip
+\noindent Singapore's bus trips stop, as they should without a key, with a message that asks for one. The Months Compared
+tab was not run: it downloads about 600 MB.
+
+\nmsub{Tests without the network}
+On a network of four nodes, 1 to 2 in 60 s over 100 m, 2 to 3 in 120 s over 200 m and 1 to 3 directly in 300 s over
+250 m, \fn{fastest\_route} from 1 to 3 goes through 2, in 3 minutes over .3 km, and \fn{travel\_matrix} gives Inf where
+no path leads. The UTM zones of Sydney, New York and London are EPSG:32756, 32618 and 32630. A page of Google's maps whose
+features hold \fn{</script>} keeps its three scripts whole. Requests the services would refuse stop before they are
+sent: a Mapillary search over more than 500 m or 1 square degree, an elevation model of OpenTopography over more than
+250 km\textsuperscript{2}, and a city with no source of commuters, trips or counts.
+
+\nmsection{References}
+{\footnotesize\raggedright\setlength{\parskip}{1pt}
+\nmref{dijkstra1959}{Dijkstra, E. W. (1959). A note on two problems in connexion with graphs. \emph{Numerische Mathematik}, 1, 269--271. \nmdoi{10.1007/BF01386390}}
+\nmref{haklay2008}{Haklay, M. and Weber, P. (2008). OpenStreetMap: user-generated street maps. \emph{IEEE Pervasive Computing}, 7(4), 12--18. \nmdoi{10.1109/MPRV.2008.80}}
+\nmref{schafer2014}{Schäfer, M., Strohmeier, M., Lenders, V., Martinovic, I. and Wilhelm, M. (2014). Bringing up OpenSky: a large-scale ADS-B sensor network for research. In \emph{Proceedings of the 13th International Symposium on Information Processing in Sensor Networks}, 83--94. \nmdoi{10.1109/IPSN.2014.6846743}}
+\nmref{strohmeier2021}{Strohmeier, M., Olive, X., Lübbe, J., Schäfer, M. and Lenders, V. (2021). Crowdsourced air traffic data from the OpenSky Network 2019--2020. \emph{Earth System Science Data}, 13(2), 357--366. \nmdoi{10.5194/essd-13-357-2021}}
+\nmref{inspire2007}{Directive 2007/2/EC of the European Parliament and of the Council of 14 March 2007 establishing an Infrastructure for Spatial Information in the European Community (INSPIRE). \emph{Official Journal of the European Union}, L 108, 1--14.}
+}
+
+\nmcredit
+\end{document}

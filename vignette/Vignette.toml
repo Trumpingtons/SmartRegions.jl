@@ -1,0 +1,13 @@
+# The vignette of SmartRegions.jl, shown in Package Vignettes once the package is installed.
+article = ""
+author = "Antonio Saragga Seabra"
+citation = ""
+description = "Overture Maps, the OpenSky Network, Mapillary, Copernicus, USGS EarthExplorer, OpenTopography, OpenStreetMap and its street networks, Eurostat, INSPIRE and the flows of mobility, read into DuckDB"
+license = "MIT"
+method = "Open data of places"
+package = "SmartRegions"
+repository = "https://github.com/Trumpingtons/SmartRegions.jl"
+source = "SmartRegions.tex"
+title = "SmartRegions: open data of places in Julia"
+topic = "Smart Regions"
+version = "0.3.0"

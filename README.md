@@ -85,6 +85,10 @@ Google's maps need a key of the Google Maps Platform, as `ENV["GOOGLE_MAPS_API_K
 
 The terms of each source apply to what is read from it: the Google Maps Platform Terms of Service to the maps, the licences of Overture Maps (ODbL, CDLA Permissive 2.0 and others, given for each feature in `license`) to its data, the Open Database License (ODbL) to the data of OpenStreetMap, the terms of use of the OpenSky Network to its data, and the terms of Mapillary, the Copernicus Data Space Ecosystem, USGS and OpenTopography, and of each dataset's provider, to theirs.
 
+## Vignette
+
+[vignette/SmartRegions.tex](vignette/SmartRegions.tex): what the package reads and from where, a worked example, and what it read from each source on the day the vignette was written. Pollis compiles it in Package Vignettes once the package is installed.
+
 ## Licence
 
 MIT.
