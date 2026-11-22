@@ -7,14 +7,17 @@ of Mapillary, the satellite scenes of the Copernicus Data Space Ecosystem and US
 of OpenTopography, the features of OpenStreetMap (from the Overpass API and Geofabrik) and its street networks, with
 their fastest routes and travel times, the geographic files of Eurostat's GISCO and Eurostat's tables, INSPIRE's
 datasets and the features of their download services, flows of commuters and trips between zones, counts of road
-traffic and the flights of the OpenSky Network's flight list, and pages of Google's 2D and 3D maps with features of
-one's own drawn on them. The functions that read data take a DuckDB connection with the extensions
+traffic and the flights of the OpenSky Network's flight list, pages of Google's 2D and 3D maps with features of
+one's own drawn on them, and, for archaeological prospection, relief visualisations of lidar terrain models and the
+candidate features found in them, with the scheduled monuments of England to set them beside, and the probability
+of archaeological features from the trained models of ADAF, the Automatic Detection of Archaeological Features tool. The functions that read data take a DuckDB connection with the extensions
 `spatial` and, for files over HTTPS, `httpfs` loaded, and write tables in it, or return SQL that reads what they
 downloaded; the map functions write an HTML page and return its path.
 """
 module SmartRegions
 
-using DBInterface, Dates, Downloads, Tables, EzXML, Graphs, SparseArrays, ZipArchives
+using DBInterface, Dates, Downloads, Tables, EzXML, Graphs, SparseArrays, ZipArchives, LinearAlgebra, Statistics
+using DataStructures: BinaryMinHeap
 
 # Places: boxes, projections and GeoJSON
 export around, utmzone, geojson, projected_box
@@ -42,6 +45,12 @@ export gisco_files, gisco_file, eurostat, vector_units
 export inspire_search, inspire_countries, wfs_features, atom_files, atom_features, ogc_features
 # Mobility
 export commuting_flows, trip_flows, given_flows, traffic_counts, given_counts, flight_list, air_flights
+# Relief visualisation
+export local_relief, sky_view_factor, openness, terrain_slope, shaded_relief, layered_image
+# Candidate features and known sites
+export fill_depressions, regions, find_mounds, find_pits, find_regions, feature_template, template_scores, find_templates
+export scheduled_monuments, candidates_table, save_candidates
+export adaf_weights, adaf_input, adaf_model, adaf_probability, adaf_features
 
 include("places.jl")
 include("google.jl")
@@ -56,5 +65,8 @@ include("streets.jl")
 include("gisco.jl")
 include("inspire.jl")
 include("mobility.jl")
+include("relief.jl")
+include("features.jl")
+include("adaf.jl")
 
 end
