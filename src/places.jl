@@ -97,3 +97,30 @@ function fetched(url, path; source, headers = Pair{String, String}[], empty = ()
 	end
 	return mv(part, path; force = true)
 end
+
+# The User-Agent of the requests to services that ask for one
+const AGENT = "User-Agent" => "SmartRegions.jl (https://pollis.org)"
+
+# Percent-encoding of a value in an address or a form, the characters of `safe` kept as they are
+encoded(s; safe = "-_.~") = join(isletter(c) && isascii(c) || isdigit(c) || c in safe ? string(c) : join("%" * uppercase(string(b; base = 16, pad = 2)) for b in codeunits(string(c))) for c in s)
+
+# A file downloaded once to `path`, a later call returning it from there; tried five times, waiting longer each time,
+# unless the server refuses the request (an HTTP status of 400 to 499 other than 429). A file the server compresses
+# for the transfer (Content-Encoding: gzip), even unasked, is saved as it is meant to be read
+function cached(url, path; headers = Pair{String, String}[])
+	isfile(path) && return path
+	mkpath(dirname(path))
+	decoding = Downloads.Downloader()
+	decoding.easy_hook = (easy, info) -> Downloads.Curl.setopt(easy, Downloads.Curl.CURLOPT_ACCEPT_ENCODING, "")
+	for k in 0:4
+		try
+			Downloads.download(url, path * ".part"; headers = [AGENT; headers], downloader = decoding)
+			return mv(path * ".part", path; force = true)
+		catch e
+			status = e isa Downloads.RequestError ? e.response.status : 0
+			(k == 4 || 400 <= status < 500 && status != 429) && rethrow()
+			@info "The download of $(basename(path)) failed (HTTP $(status)): trying again in $(5 * 2^k) s"
+			sleep(5 * 2^k)
+		end
+	end
+end

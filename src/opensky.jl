@@ -3,7 +3,6 @@
 
 const OPENSKY = "https://opensky-network.org/api/"
 const OPENSKY_TOKEN = "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token"
-const AGENT = "User-Agent" => "SmartRegions.jl (https://pollis.org)"
 const CREDITS = Dict{String, String}()
 const TOKEN = Ref(("", 0.0))
 
@@ -23,8 +22,6 @@ a request of that bucket reported them, in a `Dict`; empty before the first requ
 """
 opensky_credits() = copy(CREDITS)
 
-# Percent-encoding of a value in a form
-encoded(s) = join(isletter(c) && isascii(c) || isdigit(c) || c in "-_.~" ? string(c) : join("%" * uppercase(string(b; base = 16, pad = 2)) for b in codeunits(string(c))) for c in s)
 
 # An access token for the API client, kept for 25 of its 30 minutes
 function token()
