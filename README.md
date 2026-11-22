@@ -15,8 +15,9 @@ Open data of places for smart cities and regions, read into DuckDB from Julia.
 - **Mobility**: the commuters between the zones of a city from its census or employment statistics, trips by bike, taxi and bus, counts of road traffic, and the flights of a month from the OpenSky Network's flight list.
 - **Google's maps**: pages with Google's 2D maps (roadmap, satellite, terrain) or its photorealistic 3D map, with features of one's own drawn on them, coloured by a column: polygons raised to a height, lines at their altitudes, points with labels.
 - **Places**: the box around a point, the UTM zone of a point, a box in another coordinate system, GeoJSON written from a query, and the features of a vector file in longitude and latitude.
+- **Terrain models for archaeological prospection**: relief visualisation as RVT 2.2.3 computes it (the local relief model, the sky-view factor, positive and negative openness, shaded relief, slope and the layered image), candidate features (mounds and pits from their depressions, mounds, pits and ring ditches by template matching, and regions of local relief by threshold and shape), the trained segmentation models of ADAF (the Automatic Detection of Archaeological Features tool), and the scheduled monuments of the National Heritage List for England within an area.
 
-The functions that read data take a DuckDB connection with the extensions `spatial` and, for files over HTTPS, `httpfs` loaded. Overture Maps, Mapillary and the catalogues of satellite scenes and topographic datasets are read into tables; the OpenSky functions return the SQL that reads what they downloaded, to make a table of or join with others. The files of bands and elevation models are downloaded once into a folder and returned as paths, to read with Rasters.jl, and so are the files of OpenStreetMap, GISCO and the sources of mobility, which a later call reads from there. The map functions write an HTML page and return its path; the page holds the key, so it is written to a temporary folder that Julia removes when it exits.
+The functions that read data take a DuckDB connection with the extensions `spatial` and, for files over HTTPS, `httpfs` loaded. Overture Maps, Mapillary and the catalogues of satellite scenes and topographic datasets are read into tables; the OpenSky functions return the SQL that reads what they downloaded, to make a table of or join with others. The files of bands and elevation models are downloaded once into a folder and returned as paths, to read with Rasters.jl, and so are the files of OpenStreetMap, GISCO and the sources of mobility, which a later call reads from there. The map functions write an HTML page and return its path; the page holds the key, so it is written to a temporary folder that Julia removes when it exits. The terrain functions take a matrix of heights and its cell size, or a `Raster` of Rasters.jl, whose grid their results keep; ADAF's models need NNlib.jl and Pickle.jl loaded, and are downloaded once into a folder.
 
 ## Usage
 
@@ -77,13 +78,23 @@ eurostat(con, "demo_r_d3dens", "A.PER_KM2.")
 
 # The commuters between the municipalities around Amsterdam, from Statistics Netherlands
 commuting_flows(con, "amsterdam"; folder = "mobility")
+
+# A lidar terrain model of one's own: its local relief model, the mounds in it, the scheduled monuments of England
+# within it, and the features that ADAF's model for all archaeology finds
+using Rasters, ArchGDAL, NNlib, Pickle
+dem = replace_missing(read(Raster("dtm.tif")), NaN32)
+lrm = local_relief(dem; radius = 20)
+mounds = find_mounds(dem).candidates
+scheduled_monuments(con, dem)
+model = adaf_model(adaf_weights("adaf"; feature = :all))
+features = adaf_features(adaf_probability(model, dem)).candidates
 ```
 
 ## Keys and Accounts
 
 Google's maps need a key of the Google Maps Platform, as `ENV["GOOGLE_MAPS_API_KEY"]` or the keyword `key`; a Maps Demo Key, without billing, covers the 2D and 3D maps. The OpenSky Network answers anonymous requests for the aircraft now and live tracks; the flights of an airport and past tracks need an API client, created on the Account page of an OpenSky Network account, as `ENV["OPENSKY_CLIENT_ID"]` and `ENV["OPENSKY_CLIENT_SECRET"]`. Mapillary needs a client access token of an application registered on mapillary.com, as `ENV["MAPILLARY_ACCESS_TOKEN"]` or the keyword `token`. The catalogue of the Copernicus Data Space Ecosystem needs no account; the files of its bands need one, as `ENV["CDSE_USERNAME"]` and `ENV["CDSE_PASSWORD"]`. USGS EarthExplorer needs a USGS account with access to its Machine-to-Machine API, as `ENV["USGS_USERNAME"]` and an application token, `ENV["USGS_TOKEN"]`. The catalogue of OpenTopography needs no key; its elevation models need an API key, as `ENV["OPENTOPOGRAPHY_API_KEY"]` or the keyword `key`. The bus trips of Singapore need an account key of LTA DataMall, as `ENV["LTA_ACCOUNT_KEY"]` or the keyword `key`. Overture Maps, OpenStreetMap, Eurostat, INSPIRE and the other sources of mobility need nothing.
 
-The terms of each source apply to what is read from it: the Google Maps Platform Terms of Service to the maps, the licences of Overture Maps (ODbL, CDLA Permissive 2.0 and others, given for each feature in `license`) to its data, the Open Database License (ODbL) to the data of OpenStreetMap, the terms of use of the OpenSky Network to its data, and the terms of Mapillary, the Copernicus Data Space Ecosystem, USGS and OpenTopography, and of each dataset's provider, to theirs.
+The terms of each source apply to what is read from it: the Google Maps Platform Terms of Service to the maps, the licences of Overture Maps (ODbL, CDLA Permissive 2.0 and others, given for each feature in `license`) to its data, the Open Database License (ODbL) to the data of OpenStreetMap, the terms of use of the OpenSky Network to its data, and the terms of Mapillary, the Copernicus Data Space Ecosystem, USGS and OpenTopography, and of each dataset's provider, to theirs; ADAF's trained models are under CC BY-SA 4.0.
 
 ## Vignette
 
