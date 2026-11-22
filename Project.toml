@@ -1,7 +1,7 @@
 name = "SmartRegions"
 uuid = "2b666290-b2df-4ac3-9f74-2cd1fb537102"
 authors = ["Antonio Saragga Seabra"]
-version = "0.3.3"
+version = "0.3.4"
 
 [deps]
 DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
